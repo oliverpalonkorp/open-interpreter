@@ -1,9 +1,11 @@
+from .hotkey_handler import HotkeyHandler
 from .cli import cli
 from .utils import merge_deltas, parse_partial_json
 from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .code_interpreter import CodeInterpreter
 from .llama_2 import get_llama_2_instance
+from pynput import keyboard
 
 import os
 import time
@@ -14,6 +16,7 @@ import getpass
 import requests
 import readline
 import urllib.parse
+import threading
 import tokentrim as tt
 from rich import print
 from rich.markdown import Markdown
@@ -97,6 +100,9 @@ class Interpreter:
     # gpt-4 is faster, smarter, can call functions, and is all-around easier to use.
     # This makes gpt-4 better aligned with Open Interpreters priority to be easy to use.
     self.llama_instance = None
+
+    undo_hotkey = HotkeyHandler({keyboard.Key.cmd, keyboard.KeyCode.from_char('z')})
+    undo_hotkey.start()
 
   def cli(self):
     # The cli takes the current instance of Interpreter,
@@ -265,16 +271,13 @@ class Interpreter:
 
   def verify_api_key(self):
     """
-    Makes sure we have an AZURE_API_KEY or OPENAI_API_KEY.
+    Makes sure we have an OPENAI_API_KEY.
     """
     if self.use_azure:
-      all_env_available = (
-        ('AZURE_API_KEY' in os.environ or 'OPENAI_API_KEY' in os.environ) and
-        'AZURE_API_BASE' in os.environ and
-        'AZURE_API_VERSION' in os.environ and
-        'AZURE_DEPLOYMENT_NAME' in os.environ)
+      all_env_available = ('OPENAI_API_KEY' in os.environ and 'AZURE_API_BASE' in os.environ
+                           and 'AZURE_API_VERSION' in os.environ and 'AZURE_DEPLOYMENT_NAME' in os.environ)
       if all_env_available:
-        self.api_key = os.environ.get('AZURE_API_KEY') or os.environ['OPENAI_API_KEY']
+        self.api_key = os.environ['OPENAI_API_KEY']
         self.azure_api_base = os.environ['AZURE_API_BASE']
         self.azure_api_version = os.environ['AZURE_API_VERSION']
         self.azure_deployment_name = os.environ['AZURE_DEPLOYMENT_NAME']
@@ -305,7 +308,7 @@ class Interpreter:
           self.azure_deployment_name = input("Azure OpenAI deployment name of GPT: ")
           self.azure_api_version = input("Azure OpenAI API version: ")
           print('', Markdown(
-            "**Tip:** To save this key for later, run `export AZURE_API_KEY=your_api_key AZURE_API_BASE=your_api_base AZURE_API_VERSION=your_api_version AZURE_DEPLOYMENT_NAME=your_gpt_deployment_name` on Mac/Linux or `setx AZURE_API_KEY your_api_key AZURE_API_BASE your_api_base AZURE_API_VERSION your_api_version AZURE_DEPLOYMENT_NAME your_gpt_deployment_name` on Windows."),
+            "**Tip:** To save this key for later, run `export OPENAI_API_KEY=your_api_key AZURE_API_BASE=your_api_base AZURE_API_VERSION=your_api_version AZURE_DEPLOYMENT_NAME=your_gpt_deployment_name` on Mac/Linux or `setx OPENAI_API_KEY your_api_key AZURE_API_BASE your_api_base AZURE_API_VERSION your_api_version AZURE_DEPLOYMENT_NAME your_gpt_deployment_name` on Windows."),
                 '')
           time.sleep(2)
           print(Rule(style="white"))
