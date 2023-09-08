@@ -3,9 +3,14 @@ from pynput import keyboard
 
 
 class HotkeyHandler:
-    def __init__(self, key_combination):
+    # Uses pynput.keyboard to listen for key presses. Calls a callback function if the key combination defined
+    # gets pressed. This works in the background as its own thread.
+    # Needs to be instantiated with key combination and callback function as parameters
+
+    def __init__(self, key_combination, callback_function):
         self.key_combination = key_combination
         self.current_keys = set()
+        self.callback_function = callback_function
 
         self.listener_thread = threading.Thread(target=self.start_key_listener)
         self.listener_thread.daemon = True  # This makes the thread terminate when the main program exits
@@ -14,7 +19,7 @@ class HotkeyHandler:
         if key in self.key_combination:
             self.current_keys.add(key)
             if all(k in self.current_keys for k in self.key_combination):
-                print('Hotkey activated!')
+                self.callback_function()
 
     def on_release(self, key):
         try:

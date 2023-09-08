@@ -101,9 +101,6 @@ class Interpreter:
     # This makes gpt-4 better aligned with Open Interpreters priority to be easy to use.
     self.llama_instance = None
 
-    undo_hotkey = HotkeyHandler({keyboard.Key.cmd, keyboard.KeyCode.from_char('z')})
-    undo_hotkey.start()
-
   def cli(self):
     # The cli takes the current instance of Interpreter,
     # modifies it according to command line flags, then runs chat.
@@ -163,6 +160,38 @@ class Interpreter:
 
   def load(self, messages):
     self.messages = messages
+
+  def remove_previous_conversation(self):
+    # Removes all messages after the most recent user entry (and the entry itself).
+    # Therefore user can jump back to the latest point of conversation.
+    # Also gives a visual representation of the messages removed.
+
+    if len(self.messages) == 0:
+      return
+    # Find the index of the last 'role': 'user' entry
+    last_user_index = None
+    for i, message in enumerate(self.messages):
+        if message.get('role') == 'user':
+            last_user_index = i
+
+    removed_messages = []
+
+    # Remove all messages after the last 'role': 'user'
+    if last_user_index is not None:
+        removed_messages = self.messages[last_user_index:]
+        self.messages = self.messages[:last_user_index]
+
+    print("\n") # Aesthetics.
+
+    # Print out a preview of what messages were removed.
+    for message in removed_messages:
+      if 'content' in message and message['content'] != None:
+        print(Markdown(f"**Removed message:** `\"{message['content'][:30]}...\"`"))
+      elif 'function_call' in message:
+        print(Markdown(f"**Removed codeblock**")) # Could add preview of code removed here.
+    
+    print("") # Aesthetics.
+    print("> ", end="") # To indicate the user can write again.
 
   def chat(self, message=None, return_messages=False):
 
@@ -234,6 +263,11 @@ class Interpreter:
       
     else:
       # If it wasn't, we start an interactive chat
+      
+      # Start listening to undo -hotkey. Calls remove_previous_conversation if activated.
+      undo_hotkey = HotkeyHandler(key_combination={keyboard.Key.cmd, keyboard.KeyCode.from_char('z')}, callback_function=self.remove_previous_conversation)
+      undo_hotkey.start()
+
       while True:
         try:
           user_input = input("> ").strip()
